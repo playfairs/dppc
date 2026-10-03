@@ -6,7 +6,8 @@ import std.array : appender;
 import std.algorithm.searching : canFind;
 import std.ascii : isAlpha, isDigit, isWhite;
 
-public enum TokenKind {
+public enum TokenKind
+{
     identifier,
     integer,
     stringLiteral,
@@ -15,13 +16,15 @@ public enum TokenKind {
     invalid
 }
 
-public struct Token {
+public struct Token
+{
     TokenKind kind;
     string text;
     SourceLocation location;
 }
 
-public struct Lexer {
+public struct Lexer
+{
     private string source;
     private string file;
     private size_t index;
@@ -29,50 +32,66 @@ public struct Lexer {
     private size_t column = 1;
     private Diagnostics* diagnostics;
 
-    this(string source, string file, Diagnostics* diagnostics) {
+    this(string source, string file, Diagnostics* diagnostics)
+    {
         this.source = source;
         this.file = file;
         this.diagnostics = diagnostics;
     }
 
-    private SourceLocation location() const {
+    private SourceLocation location() const
+    {
         return SourceLocation(file, line, column);
     }
 
-    private char peek(size_t offset = 0) const {
+    private char peek(size_t offset = 0) const
+    {
         auto position = index + offset;
         return position < source.length ? source[position] : '\0';
     }
 
-    private char advance() {
+    private char advance()
+    {
         auto ch = source[index++];
-        if (ch == '\n') {
+        if (ch == '\n')
+        {
             line++;
             column = 1;
-        } else {
+        }
+        else
+        {
             column++;
         }
         return ch;
     }
 
-    private void skipTrivia() {
-        while (index < source.length) {
-            if (isWhite(peek())) {
+    private void skipTrivia()
+    {
+        while (index < source.length)
+        {
+            if (isWhite(peek()))
+            {
                 advance();
                 continue;
             }
-            if (peek() == '/' && peek(1) == '/') {
-                while (index < source.length && advance() != '\n') {}
+            if (peek() == '/' && peek(1) == '/')
+            {
+                while (index < source.length && advance() != '\n')
+                {
+                }
                 continue;
             }
-            if (peek() == '/' && peek(1) == '*') {
+            if (peek() == '/' && peek(1) == '*')
+            {
                 auto start = location();
                 advance();
                 advance();
-                while (index < source.length && !(peek() == '*' && peek(1) == '/')) {
+                while (index < source.length && !(peek() == '*' && peek(1) == '/'))
+                {
                     advance();
                 }
-                if (index == source.length) {
+                if (index == source.length)
+                {
                     diagnostics.error(start, "unterminated block comment");
                     return;
                 }
@@ -84,55 +103,79 @@ public struct Lexer {
         }
     }
 
-    public Token nextToken() {
+    public Token nextToken()
+    {
         skipTrivia();
         auto start = location();
-        if (index >= source.length) {
+        if (index >= source.length)
+        {
             return Token(TokenKind.end, "", start);
         }
 
         auto ch = peek();
-        if (isAlpha(ch) || ch == '_') {
+        if (isAlpha(ch) || ch == '_')
+        {
             auto begin = index;
-            while (isAlpha(peek()) || isDigit(peek()) || peek() == '_') {
+            while (isAlpha(peek()) || isDigit(peek()) || peek() == '_')
+            {
                 advance();
             }
             return Token(TokenKind.identifier, source[begin .. index].idup, start);
         }
 
-        if (isDigit(ch)) {
+        if (isDigit(ch))
+        {
             auto begin = index;
-            while (isDigit(peek()) || peek() == '_') {
+            while (isDigit(peek()) || peek() == '_')
+            {
                 advance();
             }
             return Token(TokenKind.integer, source[begin .. index].idup, start);
         }
 
-        if (ch == '"') {
+        if (ch == '"')
+        {
             advance();
             auto result = appender!string();
-            while (index < source.length && peek() != '"' && peek() != '\n') {
+            while (index < source.length && peek() != '"' && peek() != '\n')
+            {
                 auto item = advance();
-                if (item == '\\') {
-                    if (index >= source.length) {
+                if (item == '\\')
+                {
+                    if (index >= source.length)
+                    {
                         break;
                     }
                     auto escape = advance();
-                    switch (escape) {
-                        case 'n': result.put('\n'); break;
-                        case 'r': result.put('\r'); break;
-                        case 't': result.put('\t'); break;
-                        case '"': result.put('"'); break;
-                        case '\\': result.put('\\'); break;
-                        default:
-                            diagnostics.error(start, "unsupported string escape");
-                            result.put('?');
+                    switch (escape)
+                    {
+                    case 'n':
+                        result.put('\n');
+                        break;
+                    case 'r':
+                        result.put('\r');
+                        break;
+                    case 't':
+                        result.put('\t');
+                        break;
+                    case '"':
+                        result.put('"');
+                        break;
+                    case '\\':
+                        result.put('\\');
+                        break;
+                    default:
+                        diagnostics.error(start, "unsupported string escape");
+                        result.put('?');
                     }
-                } else {
+                }
+                else
+                {
                     result.put(item);
                 }
             }
-            if (peek() != '"') {
+            if (peek() != '"')
+            {
                 diagnostics.error(start, "unterminated string literal");
                 return Token(TokenKind.invalid, "", start);
             }
@@ -140,16 +183,21 @@ public struct Lexer {
             return Token(TokenKind.stringLiteral, result.data.idup, start);
         }
 
-        immutable twoCharacter = ["==", "!=", "<=", ">=", "&&", "||", "++", "--"];
-        foreach (candidate; twoCharacter) {
-            if (peek() == candidate[0] && peek(1) == candidate[1]) {
+        immutable twoCharacter = [
+            "==", "!=", "<=", ">=", "&&", "||", "++", "--"
+        ];
+        foreach (candidate; twoCharacter)
+        {
+            if (peek() == candidate[0] && peek(1) == candidate[1])
+            {
                 advance();
                 advance();
                 return Token(TokenKind.symbol, candidate, start);
             }
         }
 
-        if ("{}[]();.,:=+-*/%!<>~".canFind(ch)) {
+        if ("{}[]();.,:=+-*/%!<>~".canFind(ch))
+        {
             advance();
             return Token(TokenKind.symbol, [ch], start);
         }

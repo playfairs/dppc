@@ -1,12 +1,14 @@
 module ast.ast;
 
-public struct SourceLocation {
+public struct SourceLocation
+{
     string file;
     size_t line;
     size_t column;
 }
 
-public enum TypeKind {
+public enum TypeKind
+{
     invalid,
     voidType,
     intType,
@@ -20,7 +22,8 @@ public enum TypeKind {
     fixedArray
 }
 
-public struct Parameter {
+public struct Parameter
+{
     string name;
     TypeKind type;
     SourceLocation location;
@@ -28,7 +31,8 @@ public struct Parameter {
     bool isReference;
 }
 
-public enum ExprKind {
+public enum ExprKind
+{
     invalid,
     integer,
     boolean,
@@ -42,7 +46,8 @@ public enum ExprKind {
     call
 }
 
-public class Expr {
+public class Expr
+{
     ExprKind kind;
     SourceLocation location;
     string text;
@@ -62,14 +67,16 @@ public class Expr {
     size_t arrayLength;
 }
 
-public enum ObjectLifetime {
+public enum ObjectLifetime
+{
     uninitialized,
     constructing,
     live,
     destroyed
 }
 
-public enum StmtKind {
+public enum StmtKind
+{
     block,
     variable,
     expression,
@@ -81,7 +88,8 @@ public enum StmtKind {
     whileStatement
 }
 
-public struct Stmt {
+public struct Stmt
+{
     StmtKind kind;
     SourceLocation location;
     string name;
@@ -98,7 +106,8 @@ public struct Stmt {
     Stmt[] alternate;
 }
 
-public struct FunctionDecl {
+public struct FunctionDecl
+{
     string name;
     string sourceName;
     TypeKind returnType;
@@ -115,7 +124,8 @@ public struct FunctionDecl {
     string ownerType;
 }
 
-public struct FieldDecl {
+public struct FieldDecl
+{
     string name;
     TypeKind type;
     string namedType;
@@ -125,7 +135,8 @@ public struct FieldDecl {
     size_t arrayLength;
 }
 
-public struct StructDecl {
+public struct StructDecl
+{
     string name;
     FieldDecl[] fields;
     SourceLocation location;
@@ -138,13 +149,15 @@ public struct StructDecl {
     string[] constructorNames;
 }
 
-public struct ImportDecl {
+public struct ImportDecl
+{
     string moduleName;
     string[] symbols;
     SourceLocation location;
 }
 
-public struct Program {
+public struct Program
+{
     string moduleName;
     ImportDecl[] imports;
     StructDecl[] structs;

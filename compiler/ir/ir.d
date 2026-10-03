@@ -2,7 +2,8 @@ module ir.ir;
 
 import ast.ast : TypeKind;
 
-public enum Opcode {
+public enum Opcode
+{
     label,
     integerConstant,
     booleanConstant,
@@ -24,7 +25,8 @@ public enum Opcode {
     returnVoid
 }
 
-public struct Instruction {
+public struct Instruction
+{
     Opcode opcode;
     TypeKind type;
     TypeKind[] operandTypes;
@@ -38,13 +40,15 @@ public struct Instruction {
     size_t arrayLength;
 }
 
-public struct Parameter {
+public struct Parameter
+{
     string name;
     TypeKind type;
     bool isReference;
 }
 
-public struct Function {
+public struct Function
+{
     string name;
     TypeKind returnType;
     Parameter[] parameters;
@@ -53,7 +57,8 @@ public struct Function {
     bool hasBody = true;
 }
 
-public struct StructType {
+public struct StructType
+{
     string name;
     TypeKind[] fieldTypes;
     string[] fieldNamedTypes;
@@ -67,7 +72,8 @@ public struct StructType {
     TypeKind[] fieldElementTypes;
 }
 
-public struct IRProgram {
+public struct IRProgram
+{
     StructType[] structs;
     Function[] functions;
 }

@@ -4,20 +4,34 @@
   inputs = {
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     nox.url = "github:playfairs/nox";
+    treefmt-nix.url = "github:numtide/treefmt-nix";
   };
 
-  outputs = { self, nixpkgs, nox }:
+  outputs =
+    {
+      self,
+      nixpkgs,
+      nox,
+      treefmt-nix,
+    }:
     let
       system = "aarch64-darwin";
       pkgs = import nixpkgs {
         inherit system;
       };
-      dToolchain = [ pkgs.ldc ]
-        ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
-          pkgs.dmd
-        ];
+      formatting = import ./nix/formatter.nix {
+        inherit pkgs treefmt-nix self;
+      };
+      dToolchain = [
+        pkgs.ldc
+      ]
+      ++ pkgs.lib.optionals pkgs.stdenv.hostPlatform.isLinux [
+        pkgs.dmd
+      ];
     in
     {
+      formatter.${system} = formatting.wrapper;
+
       packages.${system}.default = pkgs.stdenv.mkDerivation {
         pname = "dpp";
         version = "0.2.0";
@@ -26,7 +40,8 @@
         nativeBuildInputs = [
           nox.packages.${system}.default
           pkgs.clang
-        ] ++ dToolchain;
+        ]
+        ++ dToolchain;
 
         buildPhase = ''
           nox setup build --reconfigure
@@ -47,7 +62,8 @@
         packages = [
           nox.packages.${system}.default
           pkgs.clang
-        ] ++ dToolchain;
+        ]
+        ++ dToolchain;
 
         shellHook = ''
           export DPPC_ROOT="$PWD"

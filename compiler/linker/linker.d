@@ -4,41 +4,46 @@ import std.file : exists, mkdirRecurse, remove, write;
 import std.path : dirName;
 import std.process : spawnProcess, wait;
 
-public struct LinkResult {
+public struct LinkResult
+{
     bool success;
     int exitCode;
 }
 
-public struct Linker {
-    public LinkResult link(string llvmIR, string outputPath, string[] objectFiles = null,
-            string runtimeLibrary = null) {
+public struct Linker
+{
+    public LinkResult link(string llvmIR, string outputPath,
+            string[] objectFiles = null, string runtimeLibrary = null)
+    {
         auto irPath = outputPath ~ ".dpp.ll";
         auto outputDirectory = dirName(outputPath);
-        if (outputDirectory.length != 0) {
+        if (outputDirectory.length != 0)
+        {
             mkdirRecurse(outputDirectory);
         }
         write(irPath, llvmIR);
-        scope(exit) {
-            if (irPath.exists) {
+        scope (exit)
+        {
+            if (irPath.exists)
+            {
                 remove(irPath);
             }
         }
 
         auto arguments = [
-            "clang",
-            "-Qunused-arguments",
-            "-Wno-override-module",
-            "-x",
-            "ir",
+            "clang", "-Qunused-arguments", "-Wno-override-module", "-x", "ir",
             irPath
         ];
-        if (objectFiles.length || runtimeLibrary.length) {
+        if (objectFiles.length || runtimeLibrary.length)
+        {
             arguments ~= ["-x", "none"];
         }
-        if (objectFiles.length) {
+        if (objectFiles.length)
+        {
             arguments ~= objectFiles;
         }
-        if (runtimeLibrary.length) {
+        if (runtimeLibrary.length)
+        {
             arguments ~= runtimeLibrary;
         }
         arguments ~= ["-o", outputPath];

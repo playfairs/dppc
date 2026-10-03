@@ -2,7 +2,8 @@ module symbols.symbols;
 
 import ast.ast : TypeKind;
 
-public struct FieldSymbol {
+public struct FieldSymbol
+{
     string name;
     TypeKind type;
     string namedType;
@@ -11,7 +12,8 @@ public struct FieldSymbol {
     size_t arrayLength;
 }
 
-public struct FunctionSymbol {
+public struct FunctionSymbol
+{
     string name;
     string sourceName;
     string ownerType;
@@ -24,7 +26,8 @@ public struct FunctionSymbol {
     bool isDestructor;
 }
 
-public struct StructSymbol {
+public struct StructSymbol
+{
     string name;
     FieldSymbol[] fields;
     size_t size;
@@ -36,20 +39,24 @@ public struct StructSymbol {
     bool hasGeneratedDestructor;
     bool needsDestruction;
 
-    public bool hasDestructor() const {
+    public bool hasDestructor() const
+    {
         return destructorName.length != 0;
     }
 }
 
-public struct SymbolTable {
+public struct SymbolTable
+{
     FunctionSymbol[string] functions;
     StructSymbol[string] structs;
 
-    public bool containsFunction(string name) const {
+    public bool containsFunction(string name) const
+    {
         return (name in functions) !is null;
     }
 
-    public void insertFunction(FunctionSymbol symbol) {
+    public void insertFunction(FunctionSymbol symbol)
+    {
         functions[symbol.name] = symbol;
     }
 }
