@@ -1,0 +1,9 @@
+struct Item {
+    int value;
+}
+
+int main() {
+    Item[2] items;
+    items[2].value = 1;
+    return 0;
+}

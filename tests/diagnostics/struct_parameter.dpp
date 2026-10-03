@@ -1,0 +1,10 @@
+struct Resource {
+    int value;
+}
+
+void inspect(Resource resource) {
+}
+
+int main() {
+    return 0;
+}

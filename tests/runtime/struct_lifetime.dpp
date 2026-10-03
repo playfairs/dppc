@@ -1,0 +1,77 @@
+extern(C) void dpp_test_cleanup_reset();
+extern(C) void dpp_test_cleanup_record(int value);
+extern(C) int dpp_test_cleanup_count();
+extern(C) int dpp_test_cleanup_value(int index);
+
+struct Tracked {
+    int id;
+    int payload;
+
+    ~this() {
+        dpp_test_cleanup_record(this.id);
+    }
+}
+
+void returnFromScope() {
+    Tracked item;
+    item.id = 8;
+    item.payload = 41;
+    if (item.payload != 41) {
+        dpp_test_cleanup_record(-1);
+    }
+    return;
+}
+
+int main() {
+    dpp_test_cleanup_reset();
+    {
+        Tracked first;
+        first.id = 1;
+        first.payload = 12;
+        scope(exit) dpp_test_cleanup_record(3);
+        Tracked second = Tracked();
+        second.id = 2;
+        second.payload = first.payload + 5;
+        if (second.payload != 17) {
+            return 1;
+        }
+    }
+    if (dpp_test_cleanup_count() != 3
+            || dpp_test_cleanup_value(0) != 2
+            || dpp_test_cleanup_value(1) != 3
+            || dpp_test_cleanup_value(2) != 1) {
+        return 2;
+    }
+
+    dpp_test_cleanup_reset();
+    returnFromScope();
+    if (dpp_test_cleanup_count() != 1 || dpp_test_cleanup_value(0) != 8) {
+        return 3;
+    }
+
+    dpp_test_cleanup_reset();
+    int iteration = 0;
+    while (iteration < 2) {
+        Tracked item;
+        item.id = iteration + 4;
+        iteration = iteration + 1;
+        continue;
+    }
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 4
+            || dpp_test_cleanup_value(1) != 5) {
+        return 4;
+    }
+
+    dpp_test_cleanup_reset();
+    int stop = 0;
+    while (stop < 1) {
+        Tracked item;
+        item.id = 9;
+        break;
+    }
+    if (dpp_test_cleanup_count() != 1 || dpp_test_cleanup_value(0) != 9) {
+        return 5;
+    }
+    return 0;
+}

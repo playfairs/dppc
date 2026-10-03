@@ -3,6 +3,7 @@ module parser.parser;
 import ast.ast;
 import diagnostics.diagnostics : Diagnostics;
 import lexer.lexer : Token, TokenKind;
+import std.algorithm.searching : canFind;
 import std.conv : to;
 import std.string : replace;
 
@@ -10,10 +11,42 @@ public struct Parser {
     private Token[] tokens;
     private size_t index;
     private Diagnostics* diagnostics;
+    private string[] structNames;
 
     this(Token[] tokens, Diagnostics* diagnostics) {
         this.tokens = tokens;
         this.diagnostics = diagnostics;
+    }
+
+    private bool parseFixedArraySuffix(ref TypeKind type, ref string namedType,
+            ref size_t arrayLength, ref TypeKind elementType) {
+        if (!match("[")) {
+            return false;
+        }
+        auto sizeToken = advance();
+        if (sizeToken.kind != TokenKind.integer) {
+            diagnostics.error(sizeToken.location, "fixed-array length must be an integer literal");
+        } else {
+            try {
+                auto parsedLength = to!ulong(sizeToken.text.replace("_", ""));
+                if (parsedLength == 0 || parsedLength > 1024) {
+                    diagnostics.error(sizeToken.location,
+                        "fixed-array length must be between 1 and 1024");
+                } else {
+                    arrayLength = cast(size_t) parsedLength;
+                }
+            } catch (Exception) {
+                diagnostics.error(sizeToken.location, "fixed-array length is out of range");
+            }
+        }
+        expect("]");
+        elementType = type;
+        if (type != TypeKind.structType) {
+            diagnostics.error(sizeToken.location,
+                "this compiler increment supports fixed arrays of structs only");
+        }
+        type = TypeKind.fixedArray;
+        return true;
     }
 
     private Token current() const {
@@ -57,6 +90,12 @@ public struct Parser {
     }
 
     private TypeKind parseType(bool allowAuto = false) {
+        string ignoredName;
+        return parseType(ignoredName, allowAuto);
+    }
+
+    private TypeKind parseType(out string namedType, bool allowAuto = false) {
+        namedType = "";
         if (check("void") && index + 1 < tokens.length && tokens[index + 1].text == "*") {
             advance();
             advance();
@@ -74,8 +113,13 @@ public struct Parser {
             return TypeKind.cStringPointer;
         }
         auto token = advance();
+        if (token.kind == TokenKind.identifier && structNames.canFind(token.text)) {
+            namedType = token.text;
+            return TypeKind.structType;
+        }
         switch (token.text) {
             case "void": return TypeKind.voidType;
+            case "pointer": return TypeKind.voidPointer;
             case "int": return TypeKind.intType;
             case "long": return TypeKind.longType;
             case "bool": return TypeKind.boolType;
@@ -104,6 +148,11 @@ public struct Parser {
                 program.imports ~= parseImport(importToken.location);
                 continue;
             }
+            if (check("struct")) {
+                auto structure = parseStruct(program);
+                program.structs ~= structure;
+                continue;
+            }
 
             auto start = current();
             bool externC;
@@ -116,7 +165,15 @@ public struct Parser {
                 expect(")");
                 externC = true;
             }
-            auto returnType = parseType();
+            string returnNamedType;
+            auto returnType = parseType(returnNamedType);
+            size_t returnArrayLength;
+            TypeKind returnElementType;
+            if (parseFixedArraySuffix(returnType, returnNamedType,
+                    returnArrayLength, returnElementType)) {
+                diagnostics.error(start.location,
+                    "fixed-array function return types are not supported");
+            }
             auto name = expectIdentifier("function name");
             if (!match("(")) {
                 diagnostics.error(current().location, "expected '(' after function name");
@@ -126,15 +183,14 @@ public struct Parser {
 
             FunctionDecl declaration;
             declaration.name = name.text;
+            declaration.sourceName = name.text;
             declaration.returnType = returnType;
+            declaration.returnNamedType = returnNamedType;
             declaration.location = start.location;
             declaration.externC = externC;
             if (!check(")")) {
                 do {
-                    auto parameterLocation = current().location;
-                    auto parameterType = parseType();
-                    auto parameterName = expectIdentifier("parameter name");
-                    declaration.parameters ~= Parameter(parameterName.text, parameterType, parameterLocation);
+                    declaration.parameters ~= parseParameter();
                 } while (match(","));
             }
             expect(")");
@@ -150,6 +206,146 @@ public struct Parser {
             program.functions ~= declaration;
         }
         return program;
+    }
+
+    private StructDecl parseStruct(ref Program program) {
+        auto start = advance();
+        auto name = expectIdentifier("struct name");
+        StructDecl structure;
+        structure.name = name.text;
+        structure.location = start.location;
+        if (structNames.canFind(structure.name)) {
+            diagnostics.error(name.location, "duplicate struct '" ~ structure.name ~ "'");
+        } else {
+            structNames ~= structure.name;
+        }
+        expect("{");
+        size_t constructorIndex;
+        size_t methodIndex;
+        while (current().kind != TokenKind.end && !check("}")) {
+            if (match("~")) {
+                auto destructorLocation = tokens[index - 1].location;
+                auto thisToken = expectIdentifier("'this' in destructor");
+                if (thisToken.text != "this") {
+                    diagnostics.error(thisToken.location, "struct destructor must be named ~this");
+                }
+                expect("(");
+                expect(")");
+                FunctionDecl destructor;
+                destructor.name = "__dtor_" ~ structure.name;
+                destructor.sourceName = "~this";
+                destructor.returnType = TypeKind.voidType;
+                destructor.location = destructorLocation;
+                destructor.hasBody = true;
+                destructor.isDestructor = true;
+                destructor.ownerType = structure.name;
+                destructor.parameters ~= Parameter("this", TypeKind.structType,
+                    destructorLocation, structure.name, true);
+                destructor.body = parseBlock().body;
+                if (structure.destructorName.length) {
+                    diagnostics.error(destructorLocation, "struct '" ~ structure.name
+                        ~ "' has more than one destructor");
+                } else {
+                    structure.destructorName = destructor.name;
+                    structure.hasUserDestructor = true;
+                }
+                program.functions ~= destructor;
+                continue;
+            }
+
+            if (current().kind == TokenKind.identifier
+                    && current().text == structure.name
+                    && index + 1 < tokens.length && tokens[index + 1].text == "(") {
+                auto constructorLocation = current().location;
+                advance();
+                FunctionDecl constructor;
+                constructor.name = "__dpp_ctor_" ~ structure.name ~ "_" ~ to!string(constructorIndex++);
+                constructor.sourceName = structure.name;
+                constructor.returnType = TypeKind.voidType;
+                constructor.location = constructorLocation;
+                constructor.hasBody = true;
+                constructor.isConstructor = true;
+                constructor.ownerType = structure.name;
+                constructor.parameters ~= Parameter("this", TypeKind.structType,
+                    constructorLocation, structure.name, true);
+                parseMemberParameters(constructor);
+                constructor.body = parseBlock().body;
+                structure.constructorNames ~= constructor.name;
+                program.functions ~= constructor;
+                continue;
+            }
+
+            auto fieldLocation = current().location;
+            string namedType;
+            auto fieldType = parseType(namedType);
+            size_t arrayLength;
+            TypeKind elementType;
+            parseFixedArraySuffix(fieldType, namedType, arrayLength, elementType);
+            auto fieldName = expectIdentifier("field name");
+            if (match("(")) {
+                FunctionDecl method;
+                method.name = "__dpp_method_" ~ structure.name ~ "_"
+                    ~ fieldName.text ~ "_" ~ to!string(methodIndex++);
+                method.sourceName = fieldName.text;
+                method.returnType = fieldType;
+                method.returnNamedType = namedType;
+                method.location = fieldLocation;
+                method.hasBody = true;
+                method.isMethod = true;
+                method.ownerType = structure.name;
+                method.parameters ~= Parameter("this", TypeKind.structType,
+                    fieldLocation, structure.name, true);
+                if (!check(")")) {
+                    do {
+                        method.parameters ~= parseParameter();
+                    } while (match(","));
+                }
+                expect(")");
+                method.body = parseBlock().body;
+                program.functions ~= method;
+                continue;
+            }
+            expect(";");
+            if (fieldType == TypeKind.voidType || fieldType == TypeKind.invalid
+                    || fieldType == TypeKind.stringType) {
+                diagnostics.error(fieldLocation,
+                    "struct fields currently support scalar, pointer, struct, or fixed-array-of-struct types");
+            }
+            foreach (field; structure.fields) {
+                if (field.name == fieldName.text) {
+                    diagnostics.error(fieldName.location, "duplicate field '" ~ fieldName.text
+                        ~ "' in struct '" ~ structure.name ~ "'");
+                }
+            }
+            FieldDecl field;
+            field.name = fieldName.text;
+            field.type = fieldType;
+            field.namedType = namedType;
+            field.location = fieldLocation;
+            field.elementType = elementType;
+            field.arrayLength = arrayLength;
+            structure.fields ~= field;
+        }
+        expect("}");
+        return structure;
+    }
+
+    private Parameter parseParameter() {
+        auto parameterLocation = current().location;
+        string namedType;
+        auto parameterType = parseType(namedType);
+        auto parameterName = expectIdentifier("parameter name");
+        return Parameter(parameterName.text, parameterType, parameterLocation, namedType);
+    }
+
+    private void parseMemberParameters(ref FunctionDecl declaration) {
+        expect("(");
+        if (!check(")")) {
+            do {
+                declaration.parameters ~= parseParameter();
+            } while (match(","));
+        }
+        expect(")");
     }
 
     private ImportDecl parseImport(SourceLocation location) {
@@ -188,6 +384,37 @@ public struct Parser {
         auto start = current();
         if (check("{")) {
             return parseBlock();
+        }
+
+        if (match("scope")) {
+            Stmt result;
+            result.kind = StmtKind.scopeExit;
+            result.location = start.location;
+            expect("(");
+            auto exitKind = advance();
+            if (exitKind.text != "exit") {
+                diagnostics.error(exitKind.location, "only scope(exit) cleanup is supported");
+            }
+            expect(")");
+            result.expression = parseExpression();
+            expect(";");
+            return result;
+        }
+
+        if (match("break")) {
+            Stmt result;
+            result.kind = StmtKind.breakStatement;
+            result.location = start.location;
+            expect(";");
+            return result;
+        }
+
+        if (match("continue")) {
+            Stmt result;
+            result.kind = StmtKind.continueStatement;
+            result.location = start.location;
+            expect(";");
+            return result;
         }
 
         if (match("return")) {
@@ -230,7 +457,8 @@ public struct Parser {
         }
 
         if (current().kind == TokenKind.identifier
-                && (isTypeName(current().text) || current().text == "auto"
+                && (isTypeName(current().text) || structNames.canFind(current().text)
+                    || current().text == "auto"
                     || (current().text == "void" && index + 1 < tokens.length
                         && tokens[index + 1].text == "*"))) {
             Stmt result;
@@ -238,12 +466,18 @@ public struct Parser {
             result.location = start.location;
             result.inferredDeclaration = match("auto");
             if (!result.inferredDeclaration) {
-                result.declaredType = parseType();
+                result.declaredType = parseType(result.declaredNamedType);
+                parseFixedArraySuffix(result.declaredType, result.declaredNamedType,
+                    result.arrayLength, result.elementType);
             }
             result.name = expectIdentifier("variable name").text;
-            expect("=");
-            result.expression = parseExpression();
-            result.hasExpression = true;
+            if (match("=")) {
+                result.expression = parseExpression();
+                result.hasExpression = true;
+            } else if (result.declaredType != TypeKind.structType
+                    && result.declaredType != TypeKind.fixedArray) {
+                diagnostics.error(current().location, "expected '=' in variable declaration");
+            }
             expect(";");
             return result;
         }
@@ -286,7 +520,7 @@ public struct Parser {
             result.left = parseUnary();
             return result;
         }
-        return parsePrimary();
+        return parsePostfix(parsePrimary());
     }
 
     private Expr parsePrimary() {
@@ -320,25 +554,12 @@ public struct Parser {
         if (token.kind == TokenKind.identifier) {
             result.kind = ExprKind.variable;
             result.text = token.text;
-            if (match("(")) {
-                auto callee = result;
-                result = new Expr();
-                result.kind = ExprKind.call;
-                result.location = token.location;
-                result.left = callee;
-                if (!check(")")) {
-                    do {
-                        result.arguments ~= parseExpression();
-                    } while (match(","));
-                }
-                expect(")");
-            }
             return result;
         }
         if (token.text == "(") {
-            auto nested = parseExpression();
+            result = parseExpression();
             expect(")");
-            return nested;
+            return result;
         }
 
         diagnostics.error(token.location, "expected expression");
@@ -346,8 +567,50 @@ public struct Parser {
         return result;
     }
 
+    private Expr parsePostfix(Expr expression) {
+        while (true) {
+            if (match(".")) {
+                auto memberName = expectIdentifier("member name");
+                auto member = new Expr();
+                member.kind = ExprKind.member;
+                member.location = memberName.location;
+                member.text = memberName.text;
+                member.left = expression;
+                expression = member;
+                continue;
+            }
+            if (match("[")) {
+                auto indexExpression = parseExpression();
+                expect("]");
+                auto indexed = new Expr();
+                indexed.kind = ExprKind.index;
+                indexed.location = expression.location;
+                indexed.left = expression;
+                indexed.right = indexExpression;
+                expression = indexed;
+                continue;
+            }
+            if (match("(")) {
+                auto call = new Expr();
+                call.kind = ExprKind.call;
+                call.location = expression.location;
+                call.left = expression;
+                if (!check(")")) {
+                    do {
+                        call.arguments ~= parseExpression();
+                    } while (match(","));
+                }
+                expect(")");
+                expression = call;
+                continue;
+            }
+            return expression;
+        }
+    }
+
     private static bool isTypeName(string name) {
-        return name == "int" || name == "long" || name == "bool" || name == "string";
+        return name == "int" || name == "long" || name == "bool"
+            || name == "string" || name == "pointer";
     }
 
     private static int binaryPrecedence(string operation) {

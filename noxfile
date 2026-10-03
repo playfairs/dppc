@@ -3,4 +3,15 @@ tasks:
     run: |
       nox setup build
       nox compile -C build
+      mkdir -p build/tests
+      clang -std=c11 -Iruntime/include tests/runtime/runtime_unit.c build/debug/dpp_runtime/libdpp_runtime.a -o build/tests/runtime_unit
+      build/tests/runtime_unit
+      clang -std=c11 -Iruntime/include tests/runtime/runtime_failure.c build/debug/dpp_runtime/libdpp_runtime.a -o build/tests/runtime_failure
+      for failure in double-free invalid-free; do
+        if build/tests/runtime_failure "$failure" >"build/tests/$failure.txt" 2>&1; then
+          echo "expected $failure to abort" >&2
+          exit 1
+        fi
+        grep -F "invalid or already-freed pointer" "build/tests/$failure.txt" >/dev/null
+      done
       sh tests/run.sh ./build/debug/dpp/dpp build/tests

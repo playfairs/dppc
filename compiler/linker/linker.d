@@ -10,7 +10,8 @@ public struct LinkResult {
 }
 
 public struct Linker {
-    public LinkResult link(string llvmIR, string outputPath, string[] objectFiles = null) {
+    public LinkResult link(string llvmIR, string outputPath, string[] objectFiles = null,
+            string runtimeLibrary = null) {
         auto irPath = outputPath ~ ".dpp.ll";
         auto outputDirectory = dirName(outputPath);
         if (outputDirectory.length != 0) {
@@ -31,8 +32,14 @@ public struct Linker {
             "ir",
             irPath
         ];
+        if (objectFiles.length || runtimeLibrary.length) {
+            arguments ~= ["-x", "none"];
+        }
         if (objectFiles.length) {
-            arguments ~= ["-x", "none"] ~ objectFiles;
+            arguments ~= objectFiles;
+        }
+        if (runtimeLibrary.length) {
+            arguments ~= runtimeLibrary;
         }
         arguments ~= ["-o", outputPath];
         auto process = spawnProcess(arguments);

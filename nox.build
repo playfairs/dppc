@@ -1,7 +1,18 @@
 project "dpp" {
     license = "BSL-1.0"
 
+    library.static "dpp_runtime" {
+        sources = [
+            "runtime/core/runtime.c",
+            "runtime/diagnostics/panic.c",
+            "runtime/memory/allocator.c"
+        ]
+        include_dirs = ["runtime/include"]
+        flags = ["-std=c11", "-Wall", "-Wextra"]
+    }
+
     executable.d "dpp" {
+        dependencies = ["dpp_runtime"]
         sources = [
             "compiler/ast/ast.d",
             "compiler/backend/llvm_backend.d",

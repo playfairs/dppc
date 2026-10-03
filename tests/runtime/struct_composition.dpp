@@ -1,0 +1,145 @@
+extern(C) void dpp_test_cleanup_reset();
+extern(C) void dpp_test_cleanup_record(int value);
+extern(C) int dpp_test_cleanup_count();
+extern(C) int dpp_test_cleanup_value(int index);
+
+struct Point {
+    int x;
+    int y;
+
+    Point() {
+        this.x = 1;
+        this.y = 2;
+    }
+
+    Point(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    Point(int x) {
+        this.x = x;
+        this.y = 0;
+    }
+
+    void increment() {
+        this.x = this.x + 1;
+    }
+
+    int sum() {
+        return this.x + this.y;
+    }
+
+    int sum(int adjustment) {
+        return this.x + this.y + adjustment;
+    }
+
+    ~this() {
+        dpp_test_cleanup_record(this.sum());
+    }
+}
+
+struct Inner {
+    int id;
+
+    Inner() {
+        this.id = 12;
+        dpp_test_cleanup_record(10);
+    }
+
+    ~this() {
+        dpp_test_cleanup_record(this.id);
+    }
+}
+
+struct Outer {
+    Inner inner;
+    int marker;
+
+    Outer() {
+        this.marker = 20;
+        dpp_test_cleanup_record(this.marker);
+    }
+
+    ~this() {
+        dpp_test_cleanup_record(30);
+    }
+}
+
+struct Container {
+    Outer outer;
+}
+
+struct ArrayItem {
+    int id;
+
+    ~this() {
+        dpp_test_cleanup_record(this.id);
+    }
+}
+
+struct ArrayOwner {
+    ArrayItem[2] items;
+}
+
+int main() {
+    dpp_test_cleanup_reset();
+    {
+        Point origin;
+        origin.increment();
+        Point pair = Point(7, 8);
+        Point single = Point(5);
+        if (origin.sum() != 4 || pair.sum() != 15
+                || single.sum() != 5 || single.sum(3) != 8) {
+            return 1;
+        }
+    }
+    if (dpp_test_cleanup_count() != 3
+            || dpp_test_cleanup_value(0) != 5
+            || dpp_test_cleanup_value(1) != 15
+            || dpp_test_cleanup_value(2) != 4) {
+        return 2;
+    }
+
+    dpp_test_cleanup_reset();
+    {
+        Container container;
+        if (container.outer.inner.id != 12 || container.outer.marker != 20) {
+            return 3;
+        }
+    }
+    if (dpp_test_cleanup_count() != 4
+            || dpp_test_cleanup_value(0) != 10
+            || dpp_test_cleanup_value(1) != 20
+            || dpp_test_cleanup_value(2) != 30
+            || dpp_test_cleanup_value(3) != 12) {
+        return 4;
+    }
+
+    dpp_test_cleanup_reset();
+    {
+        ArrayItem[3] items;
+        items[0].id = 1;
+        items[1].id = 2;
+        items[2].id = 3;
+    }
+    if (dpp_test_cleanup_count() != 3
+            || dpp_test_cleanup_value(0) != 3
+            || dpp_test_cleanup_value(1) != 2
+            || dpp_test_cleanup_value(2) != 1) {
+        return 5;
+    }
+
+    dpp_test_cleanup_reset();
+    {
+        ArrayOwner owner;
+        owner.items[0].id = 6;
+        owner.items[1].id = 7;
+    }
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 7
+            || dpp_test_cleanup_value(1) != 6) {
+        return 6;
+    }
+    return 0;
+}

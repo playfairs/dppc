@@ -1,0 +1,12 @@
+struct Resource {
+    int value;
+}
+
+Resource createResource() {
+    Resource resource;
+    return resource;
+}
+
+int main() {
+    return 0;
+}

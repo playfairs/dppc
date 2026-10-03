@@ -12,7 +12,28 @@ public string typeName(TypeKind type) {
         case TypeKind.cStringPointer: return "const(char)*";
         case TypeKind.voidPointer: return "void*";
         case TypeKind.nullType: return "null";
+        case TypeKind.structType: return "struct";
+        case TypeKind.fixedArray: return "fixed array";
         case TypeKind.invalid: return "<invalid>";
+    }
+}
+
+public struct PrimitiveLayout {
+    size_t size;
+    size_t alignment;
+}
+
+public PrimitiveLayout primitiveLayout(TypeKind type) {
+    final switch (type) {
+        case TypeKind.boolType: return PrimitiveLayout(1, 1);
+        case TypeKind.intType: return PrimitiveLayout(4, 4);
+        case TypeKind.longType: return PrimitiveLayout(8, 8);
+        case TypeKind.stringType, TypeKind.cStringPointer, TypeKind.voidPointer:
+            return PrimitiveLayout(8, 8);
+        case TypeKind.voidType, TypeKind.nullType, TypeKind.invalid, TypeKind.structType:
+            return PrimitiveLayout(0, 1);
+        case TypeKind.fixedArray:
+            return PrimitiveLayout(0, 1);
     }
 }
 

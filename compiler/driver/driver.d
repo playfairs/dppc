@@ -10,7 +10,8 @@ import lowering.lowering : Lowerer;
 import optimizer.optimizer : Optimizer;
 import parser.parser : Parser;
 import semantic.semantic : SemanticAnalyzer;
-import std.file : readText, write;
+import std.file : exists, readText, thisExePath, write;
+import std.path : buildPath, dirName;
 import std.process : spawnProcess, wait;
 import std.stdio : stderr, writeln;
 import std.string : endsWith;
@@ -143,7 +144,7 @@ public int runCompiler(string[] args) {
             outputPath = sourcePath ~ ".out";
         }
         auto linker = Linker();
-        auto linkResult = linker.link(llvmIR, outputPath, linkObjects);
+        auto linkResult = linker.link(llvmIR, outputPath, linkObjects, runtimeLibraryPath());
         if (!linkResult.success) {
             stderr.writeln("dpp: native code generation or linking failed with exit status ",
                 linkResult.exitCode);
@@ -159,4 +160,20 @@ public int runCompiler(string[] args) {
         stderr.writeln("dpp: ", error.msg);
         return 1;
     }
+}
+
+private string runtimeLibraryPath() {
+    auto executableDirectory = dirName(thisExePath());
+    auto buildDirectory = dirName(executableDirectory);
+    auto developmentLibrary = buildPath(buildDirectory, "dpp_runtime", "libdpp_runtime.a");
+    if (developmentLibrary.exists) {
+        return developmentLibrary;
+    }
+
+    auto installationDirectory = dirName(executableDirectory);
+    auto installedLibrary = buildPath(installationDirectory, "lib", "libdpp_runtime.a");
+    if (installedLibrary.exists) {
+        return installedLibrary;
+    }
+    throw new Exception("cannot locate libdpp_runtime.a beside the compiler");
 }

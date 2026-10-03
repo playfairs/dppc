@@ -61,6 +61,7 @@ public class LLVMBackend {
     public string emit(IRProgram program) {
         strings = new StringPool();
         usesPrintf = false;
+        strings.intern("runtime initialization failed");
         foreach (declaration; program.functions) {
             foreach (instruction; declaration.instructions) {
                 if (instruction.opcode == Opcode.stringConstant) {
@@ -75,14 +76,47 @@ public class LLVMBackend {
 
         auto output = appender!string();
         strings.emitGlobals(output);
+        foreach (structure; program.structs) {
+            output.put(format("%%dpp.struct.%s = type {", structure.name));
+            foreach (index, fieldType; structure.fieldTypes) {
+                output.put(format("%s%s", index == 0 ? " " : ", ",
+                    llvmType(fieldType, structure.fieldNamedTypes[index],
+                        structure.fieldArrayLengths[index])));
+            }
+            output.put(" }\n");
+        }
+        if (program.structs.length) {
+            output.put("\n");
+        }
         if (usesPrintf) {
             output.put("declare i32 @printf(ptr, ...)\n\n");
         }
+        output.put("declare i32 @dpp_rt_initialize()\n");
+        output.put("declare void @dpp_rt_finalize()\n\n");
+        output.put("declare void @dpp_rt_panic(ptr, ptr, i32)\n\n");
         foreach (declaration; program.functions) {
             emitFunction(output, declaration);
             output.put("\n");
         }
+        emitEntryPoint(output);
         return output.data;
+    }
+
+    private void emitEntryPoint(ref Appender!string output) {
+        output.put("define i32 @main() {\n");
+        output.put("entry:\n");
+        output.put("  %dpp.runtime.status = call i32 @dpp_rt_initialize()\n");
+        output.put("  %dpp.runtime.failed = icmp ne i32 %dpp.runtime.status, 0\n");
+        output.put("  br i1 %dpp.runtime.failed, label %dpp.runtime.init.failed, label %dpp.runtime.ready\n");
+        output.put("dpp.runtime.init.failed:\n");
+        output.put(format("  call void @dpp_rt_panic(ptr %s, ptr null, i32 0)\n",
+            strings.pointer("runtime initialization failed")));
+        output.put("  unreachable\n");
+        output.put("dpp.runtime.ready:\n");
+        output.put("  %dpp.exit.code = call i32 @dpp.user_main()\n");
+        output.put("  call void @dpp_rt_finalize()\n");
+        output.put("  ret i32 %dpp.exit.code\n");
+        output.put("}\n");
     }
 
     private void emitFunction(ref Appender!string output, Function declaration) {
@@ -92,7 +126,7 @@ public class LLVMBackend {
             if (index != 0) {
                 output.put(", ");
             }
-            output.put(llvmType(parameter.type));
+            output.put(parameter.isReference ? "ptr" : llvmType(parameter.type));
             if (declaration.hasBody) {
                 output.put(format(" %%arg%s", index));
             }
@@ -132,14 +166,29 @@ public class LLVMBackend {
                 output.put(format("  %s = select i1 true, ptr null, ptr null\n", instruction.result));
                 return;
             case Opcode.alloca:
-                output.put(format("  %s = alloca %s\n", instruction.result, llvmType(instruction.type)));
+                output.put(format("  %s = alloca %s\n", instruction.result,
+                    llvmType(instruction.type, instruction.namedType,
+                        instruction.arrayLength)));
+                return;
+            case Opcode.fieldAddress:
+                output.put(format("  %s = getelementptr inbounds %%dpp.struct.%s, ptr %s, i32 0, i32 %s\n",
+                    instruction.result, instruction.namedType, instruction.operands[0],
+                    instruction.operation));
+                return;
+            case Opcode.arrayElementAddress:
+                output.put(format("  %s = getelementptr inbounds [%s x %%dpp.struct.%s], ptr %s, i32 0, i32 %s\n",
+                    instruction.result, instruction.arrayLength, instruction.namedType,
+                    instruction.operands[0], instruction.operands[1]));
                 return;
             case Opcode.load:
                 output.put(format("  %s = load %s, ptr %s\n", instruction.result,
-                    llvmType(instruction.type), instruction.operands[0]));
+                    llvmType(instruction.type, instruction.namedType,
+                        instruction.arrayLength), instruction.operands[0]));
                 return;
             case Opcode.store:
-                output.put(format("  store %s %s, ptr %s\n", llvmType(instruction.type),
+                output.put(format("  store %s %s, ptr %s\n",
+                    llvmType(instruction.type, instruction.namedType,
+                        instruction.arrayLength),
                     instruction.operands[1], instruction.operands[0]));
                 return;
             case Opcode.signExtend:
@@ -201,8 +250,11 @@ public class LLVMBackend {
             output.put("  call i32 (ptr, ...) @printf(ptr " ~ formatPointer);
             foreach (index, operand; values) {
                 auto type = instruction.operandTypes[index];
+                auto indirect = index < instruction.indirectArguments.length
+                    && instruction.indirectArguments[index];
                 output.put(", ");
-                output.put(format("%s %s", type == TypeKind.boolType ? "i32" : llvmType(type), operand));
+                output.put(format("%s %s", indirect ? "ptr"
+                    : (type == TypeKind.boolType ? "i32" : llvmType(type)), operand));
             }
             output.put(")\n");
             return;
@@ -213,8 +265,10 @@ public class LLVMBackend {
         auto result = instruction.result.length ? instruction.result ~ " = " : "";
         output.put("  " ~ result ~ callText);
         foreach (index, operand; instruction.operands) {
+            auto indirect = index < instruction.indirectArguments.length
+                && instruction.indirectArguments[index];
             output.put(format("%s%s %s", index == 0 ? "" : ", ",
-                llvmType(instruction.operandTypes[index]), operand));
+                indirect ? "ptr" : llvmType(instruction.operandTypes[index]), operand));
         }
         output.put(")\n");
     }
@@ -230,13 +284,17 @@ public class LLVMBackend {
                 case TypeKind.voidType, TypeKind.invalid, TypeKind.voidPointer, TypeKind.nullType:
                     result.put("%s");
                     break;
+                case TypeKind.structType, TypeKind.fixedArray:
+                    result.put("%p");
+                    break;
             }
         }
         result.put("\n");
         return result.data;
     }
 
-    private static string llvmType(TypeKind type) {
+    private static string llvmType(TypeKind type, string namedType = "",
+            size_t arrayLength = 0) {
         final switch (type) {
             case TypeKind.voidType: return "void";
             case TypeKind.intType: return "i32";
@@ -244,6 +302,9 @@ public class LLVMBackend {
             case TypeKind.boolType: return "i1";
             case TypeKind.stringType, TypeKind.cStringPointer, TypeKind.voidPointer,
                     TypeKind.nullType: return "ptr";
+            case TypeKind.structType: return "%dpp.struct." ~ namedType;
+            case TypeKind.fixedArray:
+                return format("[%s x %%dpp.struct.%s]", arrayLength, namedType);
             case TypeKind.invalid: return "i32";
         }
     }
@@ -275,6 +336,9 @@ public class LLVMBackend {
     }
 
     private static string functionName(string name, bool externC = false) {
-        return externC || name == "main" ? name : "dpp." ~ name;
+        if (name == "main") {
+            return "dpp.user_main";
+        }
+        return externC ? name : "dpp." ~ name;
     }
 }

@@ -35,13 +35,15 @@
 
         installPhase = ''
           mkdir -p $out/bin
+          mkdir -p $out/lib
+          mkdir -p $out/include/dpp
           install -m755 build/debug/dpp/dpp $out/bin/dpp
+          install -m644 build/debug/dpp_runtime/libdpp_runtime.a $out/lib/libdpp_runtime.a
+          install -m644 runtime/include/dpp/runtime.h $out/include/dpp/runtime.h
         '';
       };
 
       devShells.${system}.default = pkgs.mkShell {
-        name = "dpp-dev-shell";
-
         packages = [
           nox.packages.${system}.default
           pkgs.clang

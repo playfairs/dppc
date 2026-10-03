@@ -9,6 +9,8 @@ public enum Opcode {
     stringConstant,
     nullPointer,
     alloca,
+    fieldAddress,
+    arrayElementAddress,
     load,
     store,
     signExtend,
@@ -31,11 +33,15 @@ public struct Instruction {
     string value;
     string[] operands;
     bool externC;
+    string namedType;
+    bool[] indirectArguments;
+    size_t arrayLength;
 }
 
 public struct Parameter {
     string name;
     TypeKind type;
+    bool isReference;
 }
 
 public struct Function {
@@ -47,6 +53,21 @@ public struct Function {
     bool hasBody = true;
 }
 
+public struct StructType {
+    string name;
+    TypeKind[] fieldTypes;
+    string[] fieldNamedTypes;
+    size_t size;
+    size_t alignment;
+    bool hasUserDestructor;
+    bool hasGeneratedDestructor;
+    bool needsDestruction;
+    string[] constructorNames;
+    size_t[] fieldArrayLengths;
+    TypeKind[] fieldElementTypes;
+}
+
 public struct IRProgram {
+    StructType[] structs;
     Function[] functions;
 }

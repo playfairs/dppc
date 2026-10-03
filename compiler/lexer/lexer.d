@@ -149,7 +149,7 @@ public struct Lexer {
             }
         }
 
-        if ("{}();.,:=+-*/%!<>".canFind(ch)) {
+        if ("{}[]();.,:=+-*/%!<>~".canFind(ch)) {
             advance();
             return Token(TokenKind.symbol, [ch], start);
         }

@@ -1,0 +1,9 @@
+struct Handle {
+    int value;
+}
+
+int main() {
+    Handle first;
+    Handle second = first;
+    return 0;
+}

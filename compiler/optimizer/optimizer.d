@@ -93,7 +93,8 @@ public struct Optimizer {
                         }
                     }
                     break;
-                case Opcode.label, Opcode.stringConstant, Opcode.nullPointer, Opcode.alloca, Opcode.load,
+                case Opcode.label, Opcode.stringConstant, Opcode.nullPointer, Opcode.alloca,
+                        Opcode.fieldAddress, Opcode.arrayElementAddress, Opcode.load,
                         Opcode.store, Opcode.call, Opcode.phi, Opcode.branch,
                         Opcode.conditionalBranch, Opcode.returnValue, Opcode.returnVoid:
                     break;

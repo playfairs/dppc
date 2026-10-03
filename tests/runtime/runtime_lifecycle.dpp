@@ -1,0 +1,49 @@
+extern(C) int dpp_rt_is_initialized();
+extern(C) void* dpp_rt_allocate(long size, long alignment);
+extern(C) void* dpp_rt_allocate_zeroed(long size, long alignment);
+extern(C) void* dpp_rt_reallocate(void* address, long size, long alignment);
+extern(C) void dpp_rt_deallocate(void* address);
+extern(C) long dpp_rt_live_allocation_count();
+extern(C) long dpp_rt_live_allocated_bytes();
+
+int main() {
+    if (dpp_rt_is_initialized() != 1) {
+        return 1;
+    }
+
+    long allocationsBefore = dpp_rt_live_allocation_count();
+    long bytesBefore = dpp_rt_live_allocated_bytes();
+    void* allocation = dpp_rt_allocate_zeroed(73, 64);
+    if (allocation == null) {
+        return 2;
+    }
+    if (dpp_rt_live_allocation_count() != allocationsBefore + 1) {
+        return 3;
+    }
+    if (dpp_rt_live_allocated_bytes() != bytesBefore + 73) {
+        return 4;
+    }
+
+    allocation = dpp_rt_reallocate(allocation, 101, 0);
+    if (allocation == null) {
+        return 5;
+    }
+    if (dpp_rt_live_allocation_count() != allocationsBefore + 1) {
+        return 6;
+    }
+    if (dpp_rt_live_allocated_bytes() != bytesBefore + 101) {
+        return 7;
+    }
+
+    dpp_rt_deallocate(allocation);
+    if (dpp_rt_live_allocation_count() != allocationsBefore) {
+        return 8;
+    }
+    if (dpp_rt_live_allocated_bytes() != bytesBefore) {
+        return 9;
+    }
+    if (dpp_rt_allocate(8, 3) != null) {
+        return 10;
+    }
+    return 0;
+}

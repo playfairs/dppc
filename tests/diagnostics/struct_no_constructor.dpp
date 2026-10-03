@@ -1,0 +1,12 @@
+struct Point {
+    Point(int x) {
+        this.x = x;
+    }
+
+    int x;
+}
+
+int main() {
+    Point point;
+    return 0;
+}

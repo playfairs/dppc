@@ -1,0 +1,174 @@
+extern(C) void dpp_test_cleanup_reset();
+extern(C) void dpp_test_cleanup_record(int value);
+extern(C) int dpp_test_cleanup_count();
+extern(C) int dpp_test_cleanup_value(int index);
+
+void returnFromNestedScopes(bool early) {
+    scope(exit) dpp_test_cleanup_record(1);
+    {
+        scope(exit) dpp_test_cleanup_record(2);
+        if (early) {
+            return;
+        }
+    }
+    return;
+}
+
+void deferReadsValueAtExit() {
+    int value = 7;
+    scope(exit) dpp_test_cleanup_record(value);
+    value = 9;
+}
+
+void conditionalCleanup(bool chooseFirst) {
+    if (chooseFirst) {
+        scope(exit) dpp_test_cleanup_record(20);
+    } else {
+        scope(exit) dpp_test_cleanup_record(21);
+    }
+}
+
+void continueCleanup() {
+    int iteration = 0;
+    while (iteration < 3) {
+        scope(exit) dpp_test_cleanup_record(iteration + 1);
+        {
+            scope(exit) dpp_test_cleanup_record(iteration + 11);
+            iteration = iteration + 1;
+            continue;
+        }
+    }
+}
+
+void breakCleanup() {
+    int iteration = 0;
+    while (iteration < 3) {
+        scope(exit) dpp_test_cleanup_record(iteration + 20);
+        {
+            scope(exit) dpp_test_cleanup_record(iteration + 30);
+            if (iteration == 1) {
+                break;
+            }
+        }
+        iteration = iteration + 1;
+    }
+}
+
+void nestedLoopCleanup() {
+    int outer = 0;
+    while (outer < 2) {
+        scope(exit) dpp_test_cleanup_record(outer + 100);
+        int inner = 0;
+        while (inner < 3) {
+            scope(exit) dpp_test_cleanup_record(inner + 10);
+            if (inner == 1) {
+                break;
+            }
+            inner = inner + 1;
+        }
+        outer = outer + 1;
+    }
+}
+
+int main() {
+    dpp_test_cleanup_reset();
+    {
+        scope(exit) dpp_test_cleanup_record(3);
+        scope(exit) dpp_test_cleanup_record(4);
+    }
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 4
+            || dpp_test_cleanup_value(1) != 3) {
+        return 1;
+    }
+
+    dpp_test_cleanup_reset();
+    deferReadsValueAtExit();
+    if (dpp_test_cleanup_count() != 1 || dpp_test_cleanup_value(0) != 9) {
+        return 2;
+    }
+
+    dpp_test_cleanup_reset();
+    returnFromNestedScopes(true);
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 2
+            || dpp_test_cleanup_value(1) != 1) {
+        return 3;
+    }
+
+    dpp_test_cleanup_reset();
+    returnFromNestedScopes(false);
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 2
+            || dpp_test_cleanup_value(1) != 1) {
+        return 4;
+    }
+
+    dpp_test_cleanup_reset();
+    conditionalCleanup(true);
+    conditionalCleanup(false);
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 20
+            || dpp_test_cleanup_value(1) != 21) {
+        return 5;
+    }
+
+    dpp_test_cleanup_reset();
+    continueCleanup();
+    if (dpp_test_cleanup_count() != 6
+            || dpp_test_cleanup_value(0) != 12
+            || dpp_test_cleanup_value(1) != 2
+            || dpp_test_cleanup_value(2) != 13
+            || dpp_test_cleanup_value(3) != 3
+            || dpp_test_cleanup_value(4) != 14
+            || dpp_test_cleanup_value(5) != 4) {
+        return 6;
+    }
+
+    dpp_test_cleanup_reset();
+    breakCleanup();
+    if (dpp_test_cleanup_count() != 4
+            || dpp_test_cleanup_value(0) != 30
+            || dpp_test_cleanup_value(1) != 21
+            || dpp_test_cleanup_value(2) != 31
+            || dpp_test_cleanup_value(3) != 21) {
+        return 7;
+    }
+
+    dpp_test_cleanup_reset();
+    nestedLoopCleanup();
+    if (dpp_test_cleanup_count() != 6
+            || dpp_test_cleanup_value(0) != 11
+            || dpp_test_cleanup_value(1) != 11
+            || dpp_test_cleanup_value(2) != 101
+            || dpp_test_cleanup_value(3) != 11
+            || dpp_test_cleanup_value(4) != 11
+            || dpp_test_cleanup_value(5) != 102) {
+        return 8;
+    }
+
+    dpp_test_cleanup_reset();
+    int iteration = 0;
+    while (iteration < 3) {
+        scope(exit) dpp_test_cleanup_record(iteration + 5);
+        iteration = iteration + 1;
+    }
+    if (dpp_test_cleanup_count() != 3
+            || dpp_test_cleanup_value(0) != 6
+            || dpp_test_cleanup_value(1) != 7
+            || dpp_test_cleanup_value(2) != 8) {
+        return 9;
+    }
+
+    dpp_test_cleanup_reset();
+    {
+        scope(exit) dpp_test_cleanup_record(5);
+        scope(exit) dpp_test_cleanup_record(6);
+    }
+    if (dpp_test_cleanup_count() != 2
+            || dpp_test_cleanup_value(0) != 6
+            || dpp_test_cleanup_value(1) != 5) {
+        return 10;
+    }
+    return 0;
+}
