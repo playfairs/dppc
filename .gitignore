@@ -1,0 +1,10 @@
+__pycache__/
+*.exe
+*.obj
+*.o
+*.a
+*.so
+*.dll
+*.dylib
+/build/
+/nox.state

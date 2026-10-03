@@ -1,0 +1,25 @@
+project "dpp" {
+    license = "BSL-1.0"
+
+    executable.d "dpp" {
+        sources = [
+            "compiler/ast/ast.d",
+            "compiler/backend/llvm_backend.d",
+            "compiler/ctfe/ctfe.d",
+            "compiler/diagnostics/diagnostics.d",
+            "compiler/driver/driver.d",
+            "compiler/driver/main.d",
+            "compiler/ir/ir.d",
+            "compiler/lexer/lexer.d",
+            "compiler/linker/linker.d",
+            "compiler/lowering/lowering.d",
+            "compiler/optimizer/optimizer.d",
+            "compiler/parser/parser.d",
+            "compiler/semantic/semantic.d",
+            "compiler/symbols/symbols.d",
+            "compiler/types/types.d"
+        ]
+        flags = ["-Icompiler"]
+        install = true
+    }
+}
