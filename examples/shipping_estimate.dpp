@@ -1,0 +1,21 @@
+module shipping_estimate;
+
+import std.stdio : writeln;
+
+int shippingCost(int subtotalCents, int itemCount) {
+    if (itemCount == 0 || subtotalCents >= 7500) {
+        return 0;
+    }
+    return 499 + (itemCount - 1) * 75;
+}
+
+int main() {
+    int subtotalCents = 6400;
+    int itemCount = 3;
+    int shipping = shippingCost(subtotalCents, itemCount);
+    int total = subtotalCents + shipping;
+    writeln("Subtotal cents: ", subtotalCents);
+    writeln("Shipping cents: ", shipping);
+    writeln("Total cents: ", total);
+    return 0;
+}

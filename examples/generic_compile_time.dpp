@@ -1,0 +1,19 @@
+module generic_compile_time;
+
+import std.stdio : writeln;
+
+int packetTag() {
+    return (17 * 31 + 4) * 31 + 16;
+}
+
+int checksumStep(int previous, int value) {
+    return previous * 31 + value;
+}
+
+int main() {
+    int compileTimeCandidate = packetTag();
+    int checksum = checksumStep(compileTimeCandidate, 42);
+    writeln("Packet tag: ", compileTimeCandidate);
+    writeln("Header checksum: ", checksum);
+    return 0;
+}

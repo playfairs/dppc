@@ -1,0 +1,28 @@
+module service_log_report;
+
+import std.stdio : writeln;
+
+int totalErrors(int gatewayErrors, int catalogErrors, int billingErrors) {
+    return gatewayErrors + catalogErrors + billingErrors;
+}
+
+int reportExitCode(int malformedRecords) {
+    if (malformedRecords == 0) {
+        return 0;
+    }
+    return 1;
+}
+
+int main() {
+    int gatewayErrors = 1;
+    int catalogErrors = 2;
+    int billingErrors = 0;
+    int malformedRecords = 0;
+
+    writeln("Service error report");
+    writeln("gateway errors: ", gatewayErrors);
+    writeln("catalog errors: ", catalogErrors);
+    writeln("billing errors: ", billingErrors);
+    writeln("total errors: ", totalErrors(gatewayErrors, catalogErrors, billingErrors));
+    return reportExitCode(malformedRecords);
+}

@@ -1,0 +1,27 @@
+module binary_frame;
+
+import std.stdio : writeln;
+
+int encodedFrameSize(int payloadLength) {
+    return 4 + payloadLength;
+}
+
+bool isValidPayloadLength(int payloadLength) {
+    if (payloadLength < 0 || payloadLength > 65535) {
+        return false;
+    }
+    return true;
+}
+
+int main() {
+    int payloadLength = 128;
+    if (!isValidPayloadLength(payloadLength)) {
+        writeln("invalid payload length");
+        return 1;
+    }
+
+    writeln("Header bytes: ", 4);
+    writeln("Payload bytes: ", payloadLength);
+    writeln("Frame bytes: ", encodedFrameSize(payloadLength));
+    return 0;
+}

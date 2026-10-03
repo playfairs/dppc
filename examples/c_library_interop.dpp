@@ -1,0 +1,8 @@
+module c_library_interop;
+
+extern(C) int puts(const(char)* message);
+
+int main() {
+    puts("D++ calling puts through the C ABI");
+    return 0;
+}

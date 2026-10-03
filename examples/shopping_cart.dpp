@@ -1,0 +1,19 @@
+module shopping_cart;
+
+import std.stdio : writeln;
+
+int lineItemTotal(int unitPriceCents, int quantity) {
+    return unitPriceCents * quantity;
+}
+
+int cartTotal(int notebookCount, int penSetCount) {
+    int notebooks = lineItemTotal(350, notebookCount);
+    int penSets = lineItemTotal(825, penSetCount);
+    return notebooks + penSets;
+}
+
+int main() {
+    int total = cartTotal(2, 1);
+    writeln("Cart total cents: ", total);
+    return 0;
+}

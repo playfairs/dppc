@@ -1,0 +1,8 @@
+module hello_world;
+
+import std.stdio : writeln;
+
+int main() {
+    writeln("Hello from D++.");
+    return 0;
+}

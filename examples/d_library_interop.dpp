@@ -1,0 +1,12 @@
+module d_library_interop;
+
+extern(C) int dppDLibraryAdd(int left, int right);
+
+int main() {
+    int result = dppDLibraryAdd(19, 23);
+    if (result == 42) {
+        return 0;
+    } else {
+        return 1;
+    }
+}

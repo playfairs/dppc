@@ -1,0 +1,21 @@
+module parallel_checksum;
+
+import std.stdio : writeln;
+
+int checksumRange(int first, int limit) {
+    int value = 0;
+    int current = first;
+    while (current < limit) {
+        value = value * 31 + current;
+        current = current + 1;
+    }
+    return value;
+}
+
+int main() {
+    int recordsProcessed = 1000;
+    int checksum = checksumRange(1, recordsProcessed + 1);
+    writeln("Records processed: ", recordsProcessed);
+    writeln("Sequential checksum: ", checksum);
+    return 0;
+}

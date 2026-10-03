@@ -1,0 +1,19 @@
+module owned_output;
+
+extern(C) void* fopen(const(char)* path, const(char)* mode);
+extern(C) int fputs(const(char)* text, void* stream);
+extern(C) int fclose(void* stream);
+
+int main() {
+    void* output = fopen("build/dpp-report.txt", "w");
+    if (output == null) {
+        return 1;
+    }
+
+    int writeStatus = fputs("D++ report written through C stdio.", output);
+    int closeStatus = fclose(output);
+    if (writeStatus < 0 || closeStatus != 0) {
+        return 1;
+    }
+    return 0;
+}
