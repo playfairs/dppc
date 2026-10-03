@@ -1,0 +1,6 @@
+tasks:
+  test:
+    run: |
+      nox setup build
+      nox compile -C build
+      sh tests/run.sh ./build/debug/dpp/dpp build/tests

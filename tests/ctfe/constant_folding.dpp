@@ -1,0 +1,10 @@
+module ctfe_constant_folding;
+
+int main() {
+    int value = (9 + 3) * 4 - 6;
+    if (value == 42) {
+        return 0;
+    } else {
+        return 1;
+    }
+}

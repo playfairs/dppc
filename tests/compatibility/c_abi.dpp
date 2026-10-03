@@ -1,0 +1,8 @@
+module c_abi;
+
+extern(C) int puts(const(char)* text);
+
+int main() {
+    puts("C ABI call passed");
+    return 0;
+}

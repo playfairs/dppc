@@ -1,0 +1,8 @@
+module lexer_token_stream;
+
+import std.stdio : writeln;
+
+int main() {
+    writeln("lexer token stream");
+    return 0;
+}

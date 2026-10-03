@@ -1,0 +1,10 @@
+module parser_operator_precedence;
+
+int main() {
+    int result = 2 + 3 * 4;
+    if (result == 14) {
+        return 0;
+    } else {
+        return 1;
+    }
+}

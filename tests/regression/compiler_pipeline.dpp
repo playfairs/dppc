@@ -1,0 +1,25 @@
+module compiler_pipeline;
+
+import std.stdio : writeln;
+
+int add(int left, int right) {
+    return left + right;
+}
+
+int main() {
+    int total = 0;
+    int index = 0;
+
+    while (index < 5) {
+        total = total + add(index, 1);
+        index = index + 1;
+    }
+
+    if (total == 15) {
+        writeln("D++ core pipeline passed");
+        writeln(total);
+        return 0;
+    } else {
+        return 1;
+    }
+}

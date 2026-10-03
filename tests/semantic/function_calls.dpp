@@ -1,0 +1,18 @@
+module semantic_function_calls;
+
+import std.stdio : writeln;
+
+long widenAndAdd(long value, int offset) {
+    return value + offset;
+}
+
+int main() {
+    long total = 39;
+    total = widenAndAdd(40, 2);
+    if (total == 42) {
+        writeln(true);
+        return 0;
+    } else {
+        return 1;
+    }
+}

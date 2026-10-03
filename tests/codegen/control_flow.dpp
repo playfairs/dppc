@@ -1,0 +1,16 @@
+module codegen_control_flow;
+
+int main() {
+    int value = 0;
+    int index = 0;
+    while (index < 8) {
+        value = value + index;
+        index = index + 1;
+    }
+
+    if (value == 28 && index == 8) {
+        return 0;
+    } else {
+        return 1;
+    }
+}

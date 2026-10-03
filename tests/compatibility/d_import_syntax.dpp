@@ -1,0 +1,12 @@
+module d_import_syntax;
+
+import std.stdio : writeln;
+
+void report(string message) {
+    writeln(message);
+}
+
+int main() {
+    report("D-compatible module and function syntax");
+    return 0;
+}

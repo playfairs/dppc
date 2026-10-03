@@ -1,0 +1,5 @@
+import std.file : readText;
+
+int main() {
+    return 0;
+}
