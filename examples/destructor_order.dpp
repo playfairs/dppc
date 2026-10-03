@@ -1,0 +1,38 @@
+module destructor_order;
+
+import std.stdio : writeln;
+
+struct Socket {
+    int id;
+
+    Socket() {
+        this.id = 0;
+    }
+
+    ~this() {
+        writeln("close socket ", this.id);
+    }
+}
+
+struct Session {
+    Socket socket;
+    int id;
+
+    Session(int id) {
+        this.socket.id = id + 100;
+        this.id = id;
+    }
+
+    ~this() {
+        writeln("end session ", this.id);
+    }
+}
+
+int main() {
+    {
+        Session first = Session(1);
+        Session second = Session(2);
+        scope(exit) writeln("scope cleanup");
+    }
+    return 0;
+}

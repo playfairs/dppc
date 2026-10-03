@@ -1,0 +1,34 @@
+module nested_structs;
+
+import std.stdio : writeln;
+
+struct Metric {
+    int value;
+
+    Metric() {
+        this.value = 7;
+        writeln("construct metric");
+    }
+
+    ~this() {
+        writeln("destroy metric: ", this.value);
+    }
+}
+
+struct Report {
+    Metric metric;
+    int rows;
+
+    Report() {
+        this.rows = 3;
+        writeln("construct report");
+    }
+}
+
+int main() {
+    {
+        Report report;
+        writeln("report rows: ", report.rows);
+    }
+    return 0;
+}

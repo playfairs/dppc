@@ -1,0 +1,30 @@
+module constructors;
+
+import std.stdio : writeln;
+
+struct Point {
+    int x;
+    int y;
+
+    Point() {
+        this.x = 0;
+        this.y = 0;
+    }
+
+    Point(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    int sum() {
+        return this.x + this.y;
+    }
+}
+
+int main() {
+    Point origin;
+    Point destination = Point(12, 9);
+    writeln("origin sum: ", origin.sum());
+    writeln("destination sum: ", destination.sum());
+    return 0;
+}

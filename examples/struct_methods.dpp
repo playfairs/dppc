@@ -1,0 +1,26 @@
+module struct_methods;
+
+import std.stdio : writeln;
+
+struct Counter {
+    int value;
+
+    Counter(int initial) {
+        this.value = initial;
+    }
+
+    void increment() {
+        this.value = this.value + 1;
+    }
+
+    int read() {
+        return this.value;
+    }
+}
+
+int main() {
+    Counter counter = Counter(40);
+    counter.increment();
+    writeln("counter: ", counter.read());
+    return 0;
+}

@@ -1,0 +1,25 @@
+module struct_arrays;
+
+import std.stdio : writeln;
+
+struct Task {
+    int id;
+
+    ~this() {
+        writeln("finish task ", this.id);
+    }
+}
+
+struct Batch {
+    Task[3] tasks;
+}
+
+int main() {
+    {
+        Batch batch;
+        batch.tasks[0].id = 10;
+        batch.tasks[1].id = 20;
+        batch.tasks[2].id = 30;
+    }
+    return 0;
+}
