@@ -18,12 +18,30 @@ The executable compiler has a working end-to-end core for one source module:
   line/block comments, punctuation, and the implemented multi-character
   operators.
 * The parser builds an AST for module declarations, a restricted selective
-  `std.stdio : writeln` import, primitive-returning functions, parameters,
-  local declarations, calls, assignments, unary/binary expressions, `if`,
+  `std.stdio : writeln` import, functions, structs with scalar/pointer and
+  previously declared struct fields, fixed arrays of structs, overloaded
+  constructors, instance methods, `~this()` destructors, local declarations,
+  member/index access, calls, assignments, unary/binary expressions, `if`,
   `while`, and returns.
-* Symbol/type analysis resolves function and local names, checks call arity,
-  primitive conversions, assignment, conditions, and return paths. The only
-  import resolved today is the compiler-provided `writeln` intrinsic.
+* Symbol/type analysis resolves functions, struct members, fields, and locals;
+  computes nested aggregate layout and destructibility metadata; selects
+  constructor/method overloads; and checks call arity, conversions, field/index
+  assignments, conditions, and return paths. The only import resolved today is
+  the compiler-provided `writeln` intrinsic.
+* The parser and semantic pass support D-compatible `scope(exit) expression;`
+  cleanup for the current expression subset. Lowering records cleanup actions
+  per lexical scope and emits them in reverse registration order on fallthrough
+  and return, including nested scopes and loop-body iterations. `break` and
+  `continue` are semantically checked against loop nesting and lower through
+  cleanup for the scopes they exit. Default-initialized struct locals with a
+  `~this()` or a destructible member register destructor calls in the same
+  cleanup sequence, so explicit cleanup and destruction preserve one LIFO
+  order. Struct storage is zero-initialized, nested struct fields (and fixed
+  array elements) are constructed in declaration/index order, then the
+  explicitly selected outer constructor runs. A destructor body runs before
+  its members are destroyed in reverse field order; fixed-array elements are
+  destroyed in reverse index order. Types that need member destruction receive
+  a synthesized typed destructor function.
 * CTFE folds pure literal integer arithmetic and comparisons. The IR optimizer
   performs additional integer and comparison folding.
 * Lowering builds typed operations and explicit labels/branches, including
@@ -32,15 +50,35 @@ The executable compiler has a working end-to-end core for one source module:
 * `extern(C)` prototypes/calls support the currently modeled primitive and
   pointer types. `--link-object` lets callers provide additional native object
   files, including a D object deliberately exported with C linkage.
+* Generated executables link the C ABI runtime. Their native entry point
+  initializes the runtime, invokes D++ `main`, and finalizes the runtime before
+  returning the program's exit status.
+* The runtime provides thread-safe process lifecycle state; aligned, zeroed,
+  and reallocating allocation; paired custom allocator hooks; invalid/double
+  free detection; live-allocation counters; and fatal panic diagnostics.
+  Allocation is explicit and does not impose one memory-management strategy
+  on D++ programs.
 * The driver supports native output, `--check`, `--emit-ir`, `--run`, and
   explicit link objects. Invalid source and native compiler failures return a
   nonzero status.
 
 The current IR is a typed linear instruction sequence with explicit block
 labels, branches, and phi operations; it is not yet a verified, target-neutral
-SSA IR. There is no arbitrary D module loader, D runtime integration, object
-model, templates, full CTFE, ownership checker, or optimization pipeline beyond
-constant folding. Those remain planned stages, not implemented capabilities.
+SSA IR. Implemented aggregate support includes scalar/pointer fields, nested
+previously declared struct fields, fixed arrays of structs with compile-time
+literal indexing, constructors with overload selection, instance methods with
+an implicit reference receiver, explicit destructors, and synthesized
+destructors for destructible members. Values are zero-initialized before
+subobject construction; subobjects are constructed in declaration order before
+the containing constructor runs. An explicit destructor body runs before
+reverse-order member destruction. Struct parameters and returns are diagnosed
+until their ABI and ownership/copy semantics are defined; whole-struct copying
+and assignment remain rejected. Dynamic array indices, constructors with
+member-initializer lists, exception unwinding, classes, ownership checking, and
+dynamic type metadata are not implemented. There is no arbitrary D module
+loader, D runtime interoperability, templates, full CTFE, or optimization
+pipeline beyond constant folding. Those remain planned stages, not implemented
+capabilities.
 
 ## Language identity and compatibility
 

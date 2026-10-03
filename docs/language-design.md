@@ -107,7 +107,8 @@ quietly weakening guarantees.
 | CTFE, compile-time programming and reflection | Reuse D compile-time execution and introspection; lower generated declarations normally | D foundation |
 | Lambdas, closures and higher-order functions | Preserve delegates and function literals | D foundation |
 | Arrays, strings, maps and ranges | Reuse D slices, dynamic arrays, associative arrays and ranges | D foundation |
-| RAII and deterministic resource lifetime | Add checked `own!T`, borrow, move and drop semantics | D++ extension design |
+| Struct fields, constructors, methods, nested lifetimes, and fixed arrays | Aggregate layout, overload selection, implicit `this`, generated destruction, lexical cleanup | Implemented bounded slice |
+| RAII and checked ownership | Add `own!T`, borrow, move and exception-safe drop semantics | D++ extension design; not yet implemented |
 | Exceptions | Preserve D exceptions and guarantee owner drops during unwinding | D foundation + ownership integration |
 | Concurrency, threads and atomics | Reuse D concurrency libraries and atomics; check ownership across thread transfer | D foundation + ownership integration |
 | Modules and namespaces | Keep D modules/import visibility | D foundation |
@@ -121,15 +122,34 @@ features are currently implemented.
 ## Current compiler boundary
 
 The present `dpp` build accepts a subset of function-based source: `int`, `long`,
-`bool`, `string`, and selected C pointer types; parameters and local variables;
-function calls; arithmetic, comparisons, short-circuit boolean operations;
-assignments; `if`/`else`; `while`; and return statements. It recognizes the
-selective `std.stdio : writeln` import and lowers that intrinsic to native
-formatted output. `extern(C)` prototypes can call native C functions, and
-`--link-object` accepts separately compiled native objects.
+`bool`, `string`, selected C pointer types, structs, and fixed arrays of structs;
+parameters and local variables; field/index reads and writes; function and
+instance-method calls; arithmetic, comparisons, short-circuit boolean
+operations; assignments; `if`/`else`; `while`; and return statements. Structs
+support overloaded constructors named after the struct, instance methods, and
+`~this()` destructors. Constructors, methods, and destructors use the same
+implicit reference receiver. Storage begins zero-initialized; nested members
+and array elements are constructed in declaration order before an outer
+constructor executes. User destructor bodies execute before member destruction;
+members and array elements are then destroyed in reverse order. Types containing
+destructible struct fields receive a synthesized destructor function.
 
-The compiler does not yet implement general D imports, D's native ABI or runtime,
-user-defined aggregates, classes, templates, general CTFE/reflection, ownership,
-or concurrency. The ownership syntax above and named examples describing
-unimplemented capabilities are design targets only; integration examples must
-stay within the actually supported grammar and semantics.
+Struct parameters and struct returns are rejected until their ABI and copy/move
+semantics are defined. Whole-struct copies/assignments remain rejected.
+Fixed-array indexing is limited to integer-literal indices within bounds, and
+arrays currently contain structs only. Exceptions, partial-construction
+unwinding, move semantics, and explicit destruction are not implemented.
+
+The compiler recognizes the selective `std.stdio : writeln` import and lowers
+that intrinsic to native formatted output. `extern(C)` prototypes can call
+native C functions, and `--link-object` accepts separately compiled native
+objects. General D imports, D's native ABI/runtime, classes, templates, general
+CTFE/reflection, and concurrency are not yet implemented. Examples and tests
+must stay within the supported grammar and semantics.
+
+D-compatible `scope(exit)` cleanup expressions execute in reverse registration
+order at lexical scope exit and before returns, `break`, and `continue`.
+Automatic destructor calls share this same compile-time cleanup lowering; this
+is not yet a general ownership or exception-unwinding model. Construction state
+is distinct from zero initialization, and a local is registered for destruction
+only after its constructor completes successfully.

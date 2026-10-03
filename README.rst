@@ -7,6 +7,9 @@ compiler implements an intentionally small, executable language subset.
 
 The ``dpp`` compiler parses ``.dpp`` source, checks the supported core, lowers it
 to LLVM IR, and invokes Clang to produce a native executable.
+Generated executables link the foundational C ABI runtime in ``runtime/``.
+The runtime ABI and its current implementation boundary are documented in
+``docs/runtime.md``.
 
 Goals
 -----
@@ -53,3 +56,14 @@ Compile an example after building the compiler with::
 Compile and immediately run a source file with::
 
    ./build/debug/dpp/dpp run examples/hello_world.dpp
+
+Current compiler boundary
+-------------------------
+
+The implemented core includes primitive types, functions, local variables,
+expressions, conditionals, loops, C ABI declarations/calls, the limited
+``std.stdio : writeln`` intrinsic, and D-compatible ``scope(exit)`` cleanup
+expressions. ``scope(exit)`` actions run in reverse registration order on
+fallthrough, return, ``break``, and ``continue``. Automatic destruction of
+user-defined values, constructors, ownership analysis, and exception cleanup
+are not implemented.
